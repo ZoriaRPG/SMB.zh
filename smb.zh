@@ -1,0 +1,179 @@
+#include "time.zh"
+
+namespace smb
+{
+	namespace version
+	{
+		const float ID = 0.0003;
+		const int YEAR = 2020;
+		const int MONTH = 1;
+		const int DAY = 12;
+		const int HOUR = 7;
+		const int MINUTE = 25;
+		const int TIMEZONE = tzGMT;
+	}
+	
+	const int PIPEDIR_DOWN = 0;
+	const int PIPEDIR_UP = 1;
+	const int PIPEDIR_EXIT_UP = 0;
+	const int PIPEDIR_EXIT_DOWN = 1;
+	const int PIPEBLOCK_LEFT = 0;
+	const int PIPEBLOCK_RIGHT = 0;
+	const int PLAYER_USING_PIPE  = 31; //Hero->Misc[]
+	const int PLAYER_USING_PIPE_DOWN  = 1; //Value
+	const int PLAYER_USING_PIPE_UP  = 2; //Value
+	const int PLAYER_USING_PIPE_CLEANUP  = 3; //Value
+	int isBig = 0;
+	
+	combodata script pipe
+	{
+		void run(int destscreen, int destdmap)
+		{
+			int sfx = this->Attribytes[0];
+			int lr = this->Attribytes[1];
+			int pipedir = this->Attribytes[2];
+			bool usingpipe = false;
+			int hero_y_adj = 0;
+			int clk = 0;
+			if ( Hero->Misc[PLAYER_USING_PIPE] ) Quit();
+			until(usingpipe)
+			{
+				switch(pipedir)
+				{
+					case PIPEDIR_DOWN:
+					{
+						if(Hero->Y == this->PosY() - 16)
+						{
+							switch(lr) //left or right
+							{
+								case PIPEBLOCK_LEFT:
+								{
+									if ( (Hero->X >= (this->PosX() + 2)) && Hero->X <= (this->PosX() + 16) )
+									{
+										if ( Hero->InputDown ) 
+										{
+											usingpipe = true; 
+											Hero->Misc[PLAYER_USING_PIPE] = PLAYER_USING_PIPE_DOWN;
+										}
+									}
+									break;
+								}
+								case PIPEBLOCK_RIGHT:
+								{
+									if ( (Hero->X >= (this->PosX())) && Hero->X <= (this->PosX() + 14) )
+									{
+										if ( Hero->InputDown ) 
+										{
+											usingpipe = true;
+											Hero->Misc[PLAYER_USING_PIPE] = PLAYER_USING_PIPE_DOWN;
+										}
+									}
+									break;
+								}
+								default: break;
+							}
+						}
+						break;
+					}
+					case PIPEDIR_UP:
+					{
+						if(Hero->Y == this->PosY() + 16)
+						{
+							switch(lr) //left or right
+							{
+								case PIPEBLOCK_LEFT:
+								{
+									if ( (Hero->X >= (this->PosX() + 2)) && Hero->X <= (this->PosX() + 16) )
+									{
+										if ( Hero->InputUp ) 
+										{
+											usingpipe = true;
+											Hero->Misc[PLAYER_USING_PIPE] = PLAYER_USING_PIPE_UP;
+										}
+									}
+									break;
+								}
+								case PIPEBLOCK_RIGHT:
+								{
+									if ( (Hero->X >= (this->PosX())) && Hero->X <= (this->PosX() + 14) )
+									{
+										if ( Hero->InputUp ) 
+										{
+											usingpipe = true;
+											Hero->Misc[PLAYER_USING_PIPE] = PLAYER_USING_PIPE_UP;
+										}
+									}
+									break;
+								}
+								default: break;
+							}
+						}
+						break;
+					}
+					default: break;
+				}
+				Waitframe();
+			}
+			Audio->PlaySound(sfx);
+			while(usingpipe)
+			{
+				++clk;
+				unless(clk%4) 
+				{
+					switch(lr)
+					{
+						case PIPEDIR_DOWN: ++Hero->Y; ++hero_y_adj; break;
+						case PIPEDIR_UP: --Hero->Y; ++hero_y_adj; break;
+						default: break;
+					}
+				}
+				if ( hero_y_adj > ( isBig ? 33 : 17 ) )
+				{
+					break;
+				}
+				Waitframe();
+			}
+			Hero->Misc[PLAYER_USING_PIPE] = PLAYER_USING_PIPE_CLEANUP;
+			Hero->Warp({wtSCROLL,destdmap,destscreen,-1,0,warpEffectNONE,0,0});
+		}
+	}
+	void PipeCleanup()
+	{
+		if ( Hero->Misc[PLAYER_USING_PIPE] == PLAYER_USING_PIPE_CLEANUP )
+		{
+			Hero->Misc[PLAYER_USING_PIPE] = 0;
+		}
+	}
+	//Place warp return 0 over this combo
+	combodata script exitpipe
+	{
+		void run(int pipe_exit_dir, int sfx)
+		{
+			unless(Hero->Misc[PLAYER_USING_PIPE] == PLAYER_USING_PIPE_CLEANUP) Quit(); //Only if exiting a warp.
+			int clk; int hero_y_adj;
+			Hero->X = this->PosX()+8; //Centre over exit pipe.
+			int done = 0;
+			Audio->PlaySound(sfx);
+			until(done)
+			{
+				++clk;
+				unless(clk%4) 
+				{
+					switch(pipe_exit_dir)
+					{
+						case PIPEDIR_EXIT_UP: --Hero->Y; ++hero_y_adj; break;
+						case PIPEDIR_EXIT_DOWN: ++Hero->Y; ++hero_y_adj; break;
+						default: break;
+					}
+				}
+				if ( hero_y_adj > ( isBig ? 33 : 17 ) )
+				{
+					done = true; break;
+				}
+				Waitframe();
+			}
+			Hero->Misc[PLAYER_USING_PIPE] = 0;
+		}
+	}
+} //end namespace smb
+								
